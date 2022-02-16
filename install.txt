@@ -1,0 +1,14 @@
+
+python 3.8.10
+set path=c:\Users\U54979\Python38;c:\Users\U54979\Python38\Scripts;%path%
+pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org django
+pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org garminconnect
+pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org pandas
+
+django-admin startproject sqa
+python manage.py startapp ranking
+python manage.py startapp login
+python manage.py startapp dashboard
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver 8080

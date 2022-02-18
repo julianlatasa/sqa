@@ -1,3 +1,5 @@
+git remote set-url origin https://julianlatasa:<MYTOKEN>@github.com/julianlatasa/sqa
+
 
 python 3.8.10
 set path=c:\Users\U54979\Python38;c:\Users\U54979\Python38\Scripts;%path%

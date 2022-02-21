@@ -15,10 +15,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path('ranking/', include('ranking.urls')),
     path('login/', include('login.urls')),
     path('dashboard/', include('dashboard.urls')),
     path('admin/', admin.site.urls),
+    path('', RedirectView.as_view(url='ranking/')),
+    path('form/', RedirectView.as_view(url='/')),
 ]

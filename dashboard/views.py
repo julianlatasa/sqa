@@ -13,19 +13,19 @@ from django.contrib.auth.models import User
 
 @ensure_csrf_cookie
 def index(request):
-    template = loader.get_template(r'dashboard\index.html')
+    template = loader.get_template(r'dashboard/index.html')
     context = {}
     return HttpResponse(template.render(context, request))
 
 @ensure_csrf_cookie
 def calendar(request):
-    template = loader.get_template(r'dashboard\calendar.html')
+    template = loader.get_template(r'dashboard/calendar.html')
     context = {}
     return HttpResponse(template.render(context, request))
 
 @ensure_csrf_cookie
 def weekplan(request):
-    template = loader.get_template(r'dashboard\weekplan.html')
+    template = loader.get_template(r'dashboard/weekplan.html')
     context = {'weekdays1' : [{'name' : 'Semana'},
                               {'name' : 'Lunes'},
                               {'name' : 'Martes'},

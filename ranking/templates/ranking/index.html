@@ -22,19 +22,19 @@
                 <input type="password" class="form-control" id="password" placeholder="Password">
                 <label for="password">Password</label>
               </div>
-              
+
               <div class="form-floating mb-3">
 
 <div class="row g-2">
   <div class="col-md">
     <div class="form-floating">
-        	<input type="date" class="form-control" id="fechadesde" placeholder="FechaDesde"> 
+        	<input type="date" class="form-control" id="fechadesde" placeholder="FechaDesde">
                 <label for="fechadesde">Fecha Desde</label>
     </div>
   </div>
   <div class="col-md">
     <div class="form-floating">
-        	<input type="date" class="form-control" id="fechahasta" placeholder="FechaHasta"> 
+        	<input type="date" class="form-control" id="fechahasta" placeholder="FechaHasta">
                 <label for="fechahasta">Fecha Hasta</label>
     </div>
   </div>
@@ -45,7 +45,7 @@
               <div class="d-grid">
                 <button class="btn btn-primary btn-login text-uppercase fw-bold" type="submit">Consultar</button>
               </div>
-		
+
     	    </form>
           </div>
         </div>
@@ -80,7 +80,7 @@
   <!-- Modal Error -->
   <div class="modal fade" id="errorDialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"  aria-labelledby="errorDialog" aria-hidden="true">
     <div class="modal-dialog">
-    
+
       <!-- Modal content-->
       <div class="modal-content">
         <div class="modal-header">
@@ -94,7 +94,7 @@
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
         </div>
       </div>
-      
+
     </div>
   </div>
 
@@ -123,14 +123,14 @@
     var errorDialog = new bootstrap.Modal($('#errorDialog'))
 
     showError = function (mensaje) {
-    	$("#error").html(mensaje);	
+    	$("#error").html(mensaje);
         errorDialog.show();
     };
 
     hideError = function () {
         errorDialog.hide();
     };
-    
+
     $('#fechadesde').change(function () {
         var date = new Date($(this).val());
         date.setDate(date.getDate() + 6);
@@ -143,9 +143,9 @@
         $('#fechadesde').val(date.toISOString().slice(0,10));
     });
 
-    
+
     updateProgress = function (value, text) {
-    	$('#progressbar').css('width', value+'%').attr('aria-valuenow', value);   
+    	$('#progressbar').css('width', value+'%').attr('aria-valuenow', value);
     	$('#progresstext').html(text);
     	$('#output').html(text);
     };
@@ -157,7 +157,7 @@
         //const parts = value.split(`; ${name}=`);
         //if (parts.length === 2) return parts.pop().split(';').shift();
     }
-    
+
 	$('#login-form').on('submit',function(e){
 		e.preventDefault();
         var csrftoken = getCookie('csrftoken');
@@ -179,14 +179,14 @@
       		beforeSend: function(request) {
                 request.setRequestHeader('X-CSRFToken', csrftoken);
             },
-      		data: JSON.stringify(formvalues), 
+      		data: JSON.stringify(formvalues),
 			contentType: "application/json",
-			xhrFields: {
-                // Getting on progress streaming response
-                onprogress: function(e)
-                {
+            xhr: function() {
+                var xhr = $.ajaxSettings.xhr();
+               // Download progress
+               xhr.addEventListener("progress", function(evt){
                     var progressResponse;
-                    var response = e.currentTarget.response;
+                    var response = evt.currentTarget.response;
                     if(lastResponseLength === false)
                     {
                         progressResponse = response;
@@ -199,11 +199,13 @@
                     }
                     if (progress < 100) {
                         progress = progress + 4;
-                    } 
+                    }
                     updateProgress(progress,progressResponse);
-                }
+                   console.log(response);
+               }, false);
+               return xhr;
             }
-		}).done(function (data) {
+        }).done(function (data) {
     		updateProgress(100,'Finalizado');
 			resultado();
 	    }).fail(function (jqXHR, textStatus) {
@@ -212,7 +214,7 @@
 			showError(jqXHR.responseText);
         });
     });
-    
+
     resultado = function() {
     	$.ajax({
       		type:'GET',
@@ -230,6 +232,6 @@
 
 
 </script>
- 
+
 </body>
 </html>

@@ -79,6 +79,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'cache': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
     }
 }
 
@@ -121,7 +125,7 @@ import os
 STATIC_URL = 'static/'
 
 STATIC_ROOT = '/home/julianlatasa/mysite/sqa/static' # os.path.join(BASE_DIR, "static")
-STATICFILES_DIRS = '/home/julianlatasa/mysite/sqa/static'
+#STATICFILES_DIRS = ['/home/julianlatasa/mysite/sqa/static',]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field

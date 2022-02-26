@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from dashboard.models import Sport, Team, Profile, GarminSport, UserType, PlanningType, Plan , AthleteCoach
+from dashboard.models import Sport, Team, Profile, GarminSport, UserType, PlanningType, Plan , AthleteCoach, CacheData
 from django import forms
 
 from django.contrib.admin.widgets import FilteredSelectMultiple
@@ -67,3 +67,6 @@ class ProfileAdmin(admin.ModelAdmin):
 class SportsAdmin(admin.ModelAdmin):
     form = SportForm
 
+@admin.register(CacheData)
+class CacheDataAdmin(admin.ModelAdmin):
+    pass

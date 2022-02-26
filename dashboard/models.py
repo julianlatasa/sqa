@@ -83,8 +83,8 @@ class Profile(models.Model):
 
 class CacheData(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    garmincookies = models.TextField()
-    cache = models.TextField()
+    garmincookies = models.TextField(blank=True)
+    cache = models.TextField(blank=True)
 
     
 #@receiver(post_save, sender=User)

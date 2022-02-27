@@ -56,6 +56,8 @@ from pprint import pprint
 from django.db.models.functions import ExtractWeekDay
 from django.db.models import Count, Sum
 
+import numpy as np
+
 @ensure_csrf_cookie
 def plan(request):
     data = []
@@ -99,7 +101,13 @@ def plan(request):
         data.append(datos)
                     
     template = loader.get_template(r'dashboard/plan_result.html')
-    context = {'result' : data}
+    
+    df = pd.DataFrame(data).replace({np.nan:0})
+    df.sort_values(by=['Duracion'], inplace=True, ascending=False)
+
+    df["NatacionRealizado"] = df["NatacionRealizado"].astype(int)
+
+    context = {'result' : df.to_dict('records')}
     #return HttpResponse("Hola")
     return HttpResponse(template.render(context, request))
 
@@ -331,7 +339,7 @@ def stream_response_generator(fecha, user_id):
 
     yield '{"estado": "%d", "mensaje": "%s"}' % (200,"Procesando datos")
     
-    api.logout
+    #api.logout
     df = pd.DataFrame(datalist)
     df.sort_values(by=['Actividades','Duracion'], inplace=True, ascending=False)
     df['Duracion'] = df['Duracion'].apply(lambda x: str(mytimedelta(seconds=x)))

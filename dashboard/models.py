@@ -113,6 +113,7 @@ class Profile(models.Model):
 class GarminProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     garmin_id = models.CharField(max_length=200, blank=True, null=True)
+    garmin_user_id = models.CharField(max_length=10, blank=True, null=True)
     garmincookies = models.TextField(blank=True, null=True)
     garmin_user = models.CharField(max_length=200, blank=True, null=True)
     garmin_password = models.CharField(max_length=100, blank=True, null=True)

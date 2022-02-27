@@ -38,10 +38,20 @@ class Activity(models.Model):
     def __str__(self):
         return f"{self.name}"
 
+class PlanActivities(models.Model):
+    order = models.IntegerField(blank=True,null=True)
+    date = models.DateField(null=True, blank=True)
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, blank=True)
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, blank=True)
+
+    def __str__(self):
+        return f"{self.name}"
+
 class AthleteCoach(models.Model):
     athlete = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name='athlete')
     coach = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name='coach')
     planning_type = models.ForeignKey(PlanningType, on_delete=models.CASCADE, blank=True, null=True)
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return f"{self.coach}"
@@ -54,11 +64,13 @@ class GarminSport(models.Model):
         return self.name
 
 class GarminActivity(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     garmin_activity_id = models.CharField(max_length=200, blank=True)
-    garmin_sport = models.OneToOneField(GarminSport, on_delete=models.CASCADE)    
+    garmin_sport = models.ForeignKey(GarminSport, on_delete=models.CASCADE)    
     date = models.DateField(null=True, blank=True)
     duration = models.BigIntegerField(null=True, blank=True)
+    garmin_object = models.TextField(blank=True)
+    garmin_file = models.BinaryField(blank=True,editable=False)
 
 class Team(models.Model):
     name = models.CharField(max_length=100, null=False, blank=True, default='')
@@ -80,6 +92,15 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.username, self.garmin_user}"
+    
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+#@receiver(post_save, sender=User)
+#def save_user_profile(sender, instance, **kwargs):
+#    instance.profile.save()
 
 class CacheData(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -87,11 +108,3 @@ class CacheData(models.Model):
     cache = models.TextField(blank=True)
 
     
-#@receiver(post_save, sender=User)
-#def create_user_profile(sender, instance, created, **kwargs):
-#    if created:
-#        Profile.objects.create(user=instance)
-
-#@receiver(post_save, sender=User)
-#def save_user_profile(sender, instance, **kwargs):
-#    instance.profile.save()

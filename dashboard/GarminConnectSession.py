@@ -22,6 +22,8 @@ class ApiClientSession(garminconnect.ApiClient):
         super().__init__(session, baseurl, headers, aditional_headers)
 
     def set_cookies(self, cookies):
+        #self.session.cookies = http.cookiejar.LWPCookieJar(self.cookie_jar)
+        #self.session.cookies.load(ignore_discard=True, ignore_expires=True)
         self.session.cookies.update(cookies)
 
     def get(self, addurl, aditional_headers=None, params=None):
@@ -81,11 +83,9 @@ class ApiClientSession(garminconnect.ApiClient):
 
 class GarminSession(garminconnect.Garmin):
     
-    def __init__(self, email, password, is_cn=False):
+    def __init__(self, is_cn=False):
         """Create a new class instance."""
-
-        self.username = email
-        self.password = password
+        self.saved_session = None
         self.is_cn = is_cn
 
         self.garmin_connect_base_url = "https://connect.garmin.com"
@@ -167,7 +167,6 @@ class GarminSession(garminconnect.Garmin):
             "proxy/activitylist-service/activities"
         )
 
-
         self.garmin_headers = {"NK": "NT"}
 
         self.session = cloudscraper.CloudScraper()
@@ -197,7 +196,19 @@ class GarminSession(garminconnect.Garmin):
 
         return None
 
-    def login(self):
+    def login(self, email=None, password=None, session=None):
+        if ((email is not None) and (password is not None) and (session is None)):
+            self.username = email
+            self.password = password
+            return self.authenticate()
+        elif (session is not None):
+            self.session_data = session
+            return self.login_session()
+        else:
+            return False
+
+
+    def authenticate(self):
         """Login to Garmin Connect."""
 
         logger.debug("login: %s %s", self.username, self.password)
@@ -275,34 +286,38 @@ class GarminSession(garminconnect.Garmin):
         params = {"ticket": found.group(1)}
 
         response = self.modern_rest_client.get("", params=params)
+
+        user_prefs = self.__get_json(response.text, "VIEWER_USERPREFERENCES")
+        self.display_name = user_prefs["displayName"]
+        logger.debug("Display name is %s", self.display_name)
+
+        self.unit_system = user_prefs["measurementSystem"]
+        logger.debug("Unit system is %s", self.unit_system)
+
+        social_profile = self.__get_json(response.text, "VIEWER_SOCIAL_PROFILE")
+        self.full_name = social_profile["fullName"]
+        logger.debug("Fullname is %s", self.full_name)
+
         self.saved_session = {'params' : params,
+                              'display_name': self.display_name,
                               'session_cookies' : requests.utils.dict_from_cookiejar(self.session.cookies)}
         logger.debug("Cookies saved")
 
-        user_prefs = self.__get_json(response.text, "VIEWER_USERPREFERENCES")
-        self.display_name = user_prefs["displayName"]
-        logger.debug("Display name is %s", self.display_name)
-
-        self.unit_system = user_prefs["measurementSystem"]
-        logger.debug("Unit system is %s", self.unit_system)
-
-        social_profile = self.__get_json(response.text, "VIEWER_SOCIAL_PROFILE")
-        self.full_name = social_profile["fullName"]
-        logger.debug("Fullname is %s", self.full_name)
-
         return True
 
-    def logincookies(self, displayname, session):
-        params= session['params']
-        self.modern_rest_client.set_cookies( requests.utils.cookiejar_from_dict(session['session_cookies']))
+    def login_session(self):
+        session_display_name = self.session_data['display_name']
+        params= self.session_data['params']
+        self.modern_rest_client.set_cookies( requests.utils.cookiejar_from_dict(self.session_data['session_cookies']))
         
         response = self.modern_rest_client.get("", params=params)
+        if response.status_code != 200:
+            logger.debug("Session expired, authenticating again!")
+            return self.authenticate()
 
         user_prefs = self.__get_json(response.text, "VIEWER_USERPREFERENCES")
         self.display_name = user_prefs["displayName"]
         logger.debug("Display name is %s", self.display_name)
-        
-        #TODO: Validar display_name
 
         self.unit_system = user_prefs["measurementSystem"]
         logger.debug("Unit system is %s", self.unit_system)
@@ -310,8 +325,12 @@ class GarminSession(garminconnect.Garmin):
         social_profile = self.__get_json(response.text, "VIEWER_SOCIAL_PROFILE")
         self.full_name = social_profile["fullName"]
         logger.debug("Fullname is %s", self.full_name)
-
-        return True               
+        
+        if (self.display_name == session_display_name):
+            return True               
+        else:
+            logger.debug("Session not valid for user %s", self.display_name)
+            return self.authenticate()
     
     def get_connections_count(self):  #
         url = f"{self.garmin_connect_connections_count_url}"

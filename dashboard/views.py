@@ -74,10 +74,11 @@ def rankingquery(request):
     if (request.method == 'POST'):
         datajson = json.loads( request.body.decode('utf8').replace("'", '"')  )
         fecha = datajson['fecha']
-    usuario = 'julianlatasas@gmail.com'
-    password = 'Julian80'
+#    usuario = 'julianlatasas@gmail.com'
+#    password = 'Julian80'
 
-    http = StreamingHttpResponse( stream_response_generator(usuario, password, fecha, request.user.pk), content_type='text/plain' , headers = {'X-Accel-Buffering' : 'no'} )
+#    http = StreamingHttpResponse( stream_response_generator(usuario, password, fecha, request.user.pk), content_type='text/plain' , headers = {'X-Accel-Buffering' : 'no'} )
+    http = StreamingHttpResponse( stream_response_generator(fecha, request.user.pk), content_type='text/plain' , headers = {'X-Accel-Buffering' : 'no'} )
 
     return http
 
@@ -85,13 +86,13 @@ from .models import Profile, CacheData
 from django.core.exceptions import ObjectDoesNotExist
 
 @csrf_exempt
-def stream_response_generator(usuario, password, fecha, user_id):
+def stream_response_generator(fecha, user_id):
     yield '{"procesando": ['
     yield '{"estado": "%d", "mensaje": "%s"},\n' % (200,"Iniciando consulta")
     
-    if ((not usuario) or (not password)):
-        yield '{"estado": "%d", "mensaje": "%s"},\n' % (400, "No se ingreso un usuario o una clave")
-        return
+#    if ((not usuario) or (not password)):
+#        yield '{"estado": "%d", "mensaje": "%s"},\n' % (400, "No se ingreso un usuario o una clave")
+#        return
 
     if (not fecha):
         yield '{"estado": "%d", "mensaje": "%s"},\n' % (400, "No se ingreso una fecha")
@@ -103,61 +104,36 @@ def stream_response_generator(usuario, password, fecha, user_id):
         yield '{"estado": "%d", "mensaje": "%s"},\n' % (400, "La fecha tiene un formato no valido")
         return
 
+    apicookies = None
     authuser = User.objects.get(pk=user_id)
+
+    try:
+        user_profile = Profile.objects.get(user=authuser)
+        if ((len(user_profile.garmin_user) > 0) and (len(user_profile.garmin_password) > 0)):
+            usuario = user_profile.garmin_user
+            password = user_profile.garmin_password
+    except ObjectDoesNotExist:
+        yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"No existe usuraio y clave garmin registrado")
+        return
+
     try:
         cache = CacheData.objects.get(user=authuser)
         if (len(cache.garmincookies) > 0):
             apicookies = json.loads(cache.garmincookies)
-        else:
-            apicookies = None
     except ObjectDoesNotExist:
         apicookies = None
+        
+    api = GarminSession() 
     
     try:
-        prof = Profile.objects.get(user=authuser)
-        displayname = prof.garmin_id
-    except ObjectDoesNotExist:
-        displayname = None
-
-    api = GarminSession("julianlatasa@gmail.com", "Julian80")
-        
-    #api = GarminSession(usuario, password)
-    apilogin = False
-    connections = None
-    if ((apicookies is not None) and (displayname is not None)):
-        try:
-            if (api.logincookies(displayname, apicookies) == False):
-                yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error al loguearse a Garmin con cookies")
-                return
-            apilogin = True
-        except Exception as e:
-            yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error inesperado al loguearse a Garmin con cookies:\\n" + str(e))
+        if (api.login(usuario,password, apicookies) == False):
+            yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error al loguearse a Garmin")
             return
+    except Exception as e:
+        yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error inesperado al loguearse a Garmin:\\n" + str(e))
+        return   
 
-    if (apilogin == True):
-        try:
-            connections = api.get_connections()
-        except:
-            apilogin = False
-            cache.garmincookies = ''
-            cache.save()
-    
-    if (apilogin == False):
-        try:
-            if (api.login() == False):
-                yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error al loguearse a Garmin")
-                return
-        except Exception as e:
-            yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error inesperado al loguearse a Garmin:\\n" + str(e))
-            return   
-
-        try:
-            prof = Profile.objects.get(user=authuser)
-            prof.garmin_id = api.display_name
-        except ObjectDoesNotExist:
-            prof = Profile(user=authuser,garmin_id=api.display_name)
-        prof.save()
-            
+    if (api.saved_session is not None):
         try:
             cache = CacheData.objects.get(user=authuser)
             cache.garmincookies = json.dumps(api.saved_session)
@@ -167,8 +143,7 @@ def stream_response_generator(usuario, password, fecha, user_id):
 
     yield '{"estado": "%d", "mensaje": "%s"},\n' % (200,"Obteniendo contactos")
     try:
-        if (connections is None):
-            connections = api.get_connections()
+        connections = api.get_connections()
     except:
         yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error al obtener contactos")
         return

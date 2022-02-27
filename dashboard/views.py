@@ -51,6 +51,57 @@ def ranking(request):
     context = {}
     return HttpResponse(template.render(context, request))
 
+from .models import AthleteCoach, PlanActivities
+from pprint import pprint
+from django.db.models.functions import ExtractWeekDay
+from django.db.models import Count, Sum
+
+@ensure_csrf_cookie
+def plan(request):
+    data = []
+    inidate = datetime.datetime(2022,2,21,0,0,0).astimezone(pytz.UTC)
+    findate = datetime.datetime(2022,2,28,0,0,0).astimezone(pytz.UTC)
+    coach_user = User.objects.get(username="nsantander")
+    atletas = AthleteCoach.objects.filter(coach=coach_user)
+    for atleta in atletas:
+        #print(atleta.athlete)
+        atleta_user = atleta.athlete
+        atleta_plan = atleta.plan
+        datos = {'Usuario' : atleta.athlete.first_name + ' ' + atleta.athlete.last_name, 
+                 'TotalPorc': 0, 
+                 'TotalRealizado': 0,
+                 'TotalPlan': 0,
+                 'Duracion': 0
+                 }
+        #actividades = PlanActivities.objects.filter(plan=atleta.plan)
+        #datos = atleta.objects.select_related('Plan') #, 'PlanActivities')
+        #for actividad in actividades:
+            #print(actividad.activity.sport_type)
+            #print(actividad.date.weekday())
+        #test = PlanActivities.objects.annotate(weekday=ExtractWeekDay('date')).values('weekday').annotate(total=Count('activity')).values('weekday','total' )
+        #test = PlanActivities.objects.select_related('activity__sport_type__name').annotate(total=Count('activity')).values('activity__sport_type__name','total' )
+        planificacion = PlanActivities.objects.filter(plan=atleta_plan).select_related('activity__sport_type__name').values('activity__sport_type__name').annotate(total=Count('activity'))
+        for planificado in planificacion:
+            datos[planificado['activity__sport_type__name']+'Plan'] = planificado['total']
+            datos['TotalPlan'] = datos['TotalPlan']+ planificado['total']
+            #print(t)
+        cumplido = GarminActivities.objects.filter(user=atleta_user).filter(datetime__range=[inidate, findate]).values('garmin_sport__sport__name').annotate(total=Count('garmin_activity_id')).annotate(duracion=Sum('duration'))
+        for realizado in cumplido:
+            datos[realizado['garmin_sport__sport__name']+'Realizado'] = realizado['total']
+            datos[realizado['garmin_sport__sport__name']+'Duracion'] = str(mytimedelta(seconds=realizado['duracion'])) 
+            #datos[realizado['garmin_sport__sport__name']+'Realizado'] = realizado['total']
+            datos[realizado['garmin_sport__sport__name']+'Porc'] = realizado['total'] / datos[realizado['garmin_sport__sport__name']+'Plan'] * 100
+            datos['TotalRealizado'] = datos['TotalRealizado']+ realizado['total']
+            datos['Duracion'] = datos['Duracion'] + realizado['duracion']
+            #print(t)
+        datos['TotalPorc'] = datos['TotalRealizado'] / datos['TotalPlan'] * 100
+        datos['TotalDuracion'] = str(mytimedelta(seconds=datos['Duracion'])) 
+        data.append(datos)
+                    
+    template = loader.get_template(r'dashboard/plan_result.html')
+    context = {'result' : data}
+    #return HttpResponse("Hola")
+    return HttpResponse(template.render(context, request))
 
 @ensure_csrf_cookie
 def weekplan(request):
@@ -187,7 +238,7 @@ def stream_response_generator(fecha, user_id):
             try:        
                 garmin_activity = GarminActivities.objects.get(garmin_activity_id=activitie['activityId'])
             except ObjectDoesNotExist:
-                localdatetime = datetime.datetime.strptime(activitie['startTimeLocal'], "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.timezone("America/Buenos_Aires"))
+                localdatetime = datetime.datetime.strptime(activitie['startTimeLocal'], "%Y-%m-%d %H:%M:%S").astimezone(pytz.timezone("America/Buenos_Aires"))
                 garmin_activity = GarminActivities(datetime=localdatetime,
                                                    user=authuser,
                                                    garmin_activity_id=activitie['activityId'],
@@ -251,7 +302,7 @@ def stream_response_generator(fecha, user_id):
                 try:        
                     garmin_activity = GarminActivities.objects.get(garmin_activity_id=activitie['activityId'])
                 except ObjectDoesNotExist:
-                    localdatetime = datetime.datetime.strptime(activitie['startTimeLocal'], "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.timezone("America/Buenos_Aires"))
+                    localdatetime = datetime.datetime.strptime(activitie['startTimeLocal'], "%Y-%m-%d %H:%M:%S").astimezone(pytz.timezone("America/Buenos_Aires"))
                     garmin_activity = GarminActivities(datetime=localdatetime,
                                                        user=garmin_user.user,
                                                        garmin_activity_id=activitie['activityId'],

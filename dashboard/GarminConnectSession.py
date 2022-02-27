@@ -16,6 +16,17 @@ logger = logging.getLogger(__name__)
 from garminconnect import GarminConnectConnectionError, GarminConnectTooManyRequestsError, GarminConnectAuthenticationError
 import garminconnect
 
+#import sys
+
+#root = logging.getLogger()
+#root.setLevel(logging.DEBUG)
+
+#handler = logging.StreamHandler(sys.stdout)
+#handler.setLevel(logging.DEBUG)
+#formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#handler.setFormatter(formatter)
+#root.addHandler(handler)
+
 class ApiClientSession(garminconnect.ApiClient):
     """Class for a single API endpoint."""
     def __init__(self, session, baseurl, headers=None, aditional_headers=None):
@@ -197,12 +208,12 @@ class GarminSession(garminconnect.Garmin):
         return None
 
     def login(self, email=None, password=None, session=None):
+        self.username = email
+        self.password = password
+        self.session_data = session
         if ((email is not None) and (password is not None) and (session is None)):
-            self.username = email
-            self.password = password
             return self.authenticate()
         elif (session is not None):
-            self.session_data = session
             return self.login_session()
         else:
             return False
@@ -306,16 +317,25 @@ class GarminSession(garminconnect.Garmin):
         return True
 
     def login_session(self):
+        logger.debug("login with cookies")
+
         session_display_name = self.session_data['display_name']
         params= self.session_data['params']
+        logger.debug("Set cookies in session")
         self.modern_rest_client.set_cookies( requests.utils.cookiejar_from_dict(self.session_data['session_cookies']))
         
+        logger.debug("Get page data with cookies")
         response = self.modern_rest_client.get("", params=params)
+        logger.debug("Session response %s", response.status_code)
         if response.status_code != 200:
             logger.debug("Session expired, authenticating again!")
             return self.authenticate()
 
         user_prefs = self.__get_json(response.text, "VIEWER_USERPREFERENCES")
+        if (user_prefs is None):
+            logger.debug("No se pudo recuperar el usuario")
+            logger.debug("Session expired, authenticating again!")
+            return self.authenticate()
         self.display_name = user_prefs["displayName"]
         logger.debug("Display name is %s", self.display_name)
 

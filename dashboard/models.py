@@ -6,6 +6,8 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from django.contrib import admin
+
 class Sport(models.Model):
     name = models.CharField(max_length=100, null=False, blank=True, default='')
 
@@ -63,6 +65,8 @@ class GarminSport(models.Model):
     def __str__(self):
         return f"{self.name}"
 
+import pytz
+
 class GarminActivities(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     garmin_activity_id = models.CharField(max_length=200, blank=True)
@@ -71,6 +75,19 @@ class GarminActivities(models.Model):
     duration = models.BigIntegerField(null=True, blank=True)
     garmin_object = models.TextField(blank=True)
     garmin_file = models.BinaryField(blank=True,editable=False)
+
+
+    @admin.display(description='Fecha')
+    def fecha_actividad(self):
+        return self.datetime.astimezone(pytz.timezone("America/Buenos_Aires")).strftime("%d/%m/%Y, %H:%M:%S")
+
+    @admin.display(description='Usuario')
+    def usuario_actividad(self):
+        return f"{self.user.first_name} {self.user.last_name}"
+
+    @admin.display(description='Tipo Actividad')
+    def tipo_actividad(self):
+        return f"{self.garmin_sport.sport.name}"
 
     def __str__(self):
         return f"{self.garmin_sport.name}, {self.user.username}, {self.datetime}"
@@ -87,18 +104,18 @@ class Profile(models.Model):
     usertype = models.ForeignKey(UserType, on_delete=models.CASCADE, blank=True, null=True)
     #usertype = models.OneToOneField(UserType, on_delete=models.CASCADE, null=True, blank=True)
     birth_date = models.DateField(null=True, blank=True)
-    weight = models.DecimalField(max_digits = 5, decimal_places = 2, blank=True)
-    height = models.DecimalField(max_digits = 5, decimal_places = 2, blank=True)
+    weight = models.DecimalField(max_digits = 5, decimal_places = 2, blank=True, default=0)
+    height = models.DecimalField(max_digits = 5, decimal_places = 2, blank=True, default=0)
 
     def __str__(self):
         return f"{self.user.username}"
 
 class GarminProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    garmin_id = models.CharField(max_length=200, blank=True)
-    garmincookies = models.TextField(blank=True)
-    garmin_user = models.CharField(max_length=200, blank=True)
-    garmin_password = models.CharField(max_length=100, blank=True)
+    garmin_id = models.CharField(max_length=200, blank=True, null=True)
+    garmincookies = models.TextField(blank=True, null=True)
+    garmin_user = models.CharField(max_length=200, blank=True, null=True)
+    garmin_password = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username}"
@@ -111,6 +128,7 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 #@receiver(post_save, sender=User)
 #def save_user_profile(sender, instance, **kwargs):
-#    instance.profile.save()
+#    instance.Profile.save()
+#    instance.GarminProfile.save()
 
     

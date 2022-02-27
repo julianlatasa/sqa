@@ -1,0 +1,163 @@
+<div class="container bg-light py-2">
+    <form method="post" id="dates-form">
+        <div class="row">
+            <div class="col-4"> 
+                <div class="form-floating">
+                    <input type="date" class="form-control" id="fechadesde" placeholder="FechaDesde">
+                    <label for="fechadesde">Fecha Desde</label>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="form-floating">
+                    <input type="date" class="form-control" id="fechahasta" placeholder="FechaHasta">
+                    <label for="fechahasta">Fecha Hasta</label>
+                </div>
+            </div>
+            <div class="col-4 d-flex align-items-center justify-content-center">
+                <div class="form-floating">
+                    <button class="btn btn-primary btn-login text-uppercase fw-bold" type="submit">Consultar</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div id="resultado"></div>
+
+  <!-- Modal Prograso -->
+<div class="modal fade" id="pleaseWaitDialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="pleaseWaitDialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+          <h5 class="modal-title" id="staticBackdropLabel">Procesando...</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="progress">
+          <div class="progress-bar progress-bar-success progress-bar-striped" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100" style="width: 10%" id="progressbar">
+            <span class="sr-only" id="progresstext">Login a Garmin</span>
+          </div>
+        </div>
+        <span id="output"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+<script>
+    var progress = 0;
+
+    var pleaseWaitDialog = new bootstrap.Modal($('#pleaseWaitDialog'))
+
+    showPleaseWait = function () {
+        pleaseWaitDialog.show();
+    };
+
+    hidePleaseWait = function () {
+        pleaseWaitDialog.hide();
+    };
+
+    $('#fechadesde').change(function () {
+        var date = new Date($(this).val());
+        date.setDate(date.getDate() + 6);
+        $('#fechahasta').val(date.toISOString().slice(0,10));
+    });
+
+    $('#fechahasta').change(function () {
+        var date = new Date($(this).val());
+        date.setDate(date.getDate() - 6);
+        $('#fechadesde').val(date.toISOString().slice(0,10));
+    });
+
+    updateProgress = function (value, text) {
+    	$('#progressbar').css('width', value+'%').attr('aria-valuenow', value);
+    	$('#progresstext').html(text);
+    	$('#output').html(text);
+    };
+
+	$('#dates-form').on('submit',function(e){
+		e.preventDefault();
+        var lastresponse = 0;
+        var jsonresponse = undefined;
+        var csrftoken = getCookie('csrftoken');
+		updateProgress(0,"");
+		progress = 0;
+		showPleaseWait();
+		var formvalues = {
+          		usuario: $("#usuario").val(),
+          		password: $("#password").val(),
+          		fecha: $("#fechahasta").val()
+		}
+
+		$.ajax({
+      		type:'POST',
+      		async: true,
+      		url:'/dashboard/ranking/query/',
+      		beforeSend: function(request) {
+                request.setRequestHeader('X-CSRFToken', csrftoken);
+            },
+      		data: JSON.stringify(formvalues),
+			contentType: "application/json",
+            xhr: function() {
+                var xhr = $.ajaxSettings.xhr();
+               // Download progress
+               xhr.addEventListener("progress", function(evt){
+                    var response = evt.currentTarget.response;
+                    if (response.slice(-3,-1) == "},") {
+                        jsonresponse = JSON.parse(response.slice(0,-2) + "]}")
+                        if (progress < 100) {
+                            progress = progress + 4;
+                        }
+                        if (jsonresponse.procesando[lastresponse].estado == "200") {
+                            updateProgress(progress,jsonresponse.procesando[lastresponse].mensaje.replace(/\n/g, "<br />"));
+                            lastresponse = lastresponse + 1;
+                        }
+                        else if (jsonresponse.procesando[lastresponse].estado == "400") {
+                            hidePleaseWait();
+                        }
+                    }
+               }, false);
+               return xhr;
+            }
+        }).done(function (data) {
+    		updateProgress(100,'Finalizado');
+            if (data.slice(-3,-1) == "},") {
+                jsonresponse = JSON.parse(data.slice(0,-2) + "]}")
+                if (jsonresponse.procesando[lastresponse].estado == "400") {
+                    showError(jsonresponse.procesando[lastresponse].mensaje.replace(/\n/g, "<br />"));
+                }
+            } 
+            else if (data.slice(-2) == "]}") {
+        	    hidePleaseWait();
+                jsonresponse = JSON.parse(data.replace(/\n/g, ""));
+                //console.log(jsonresponse.resultado);
+    			resultado(jsonresponse.resultado);
+    		}
+	    }).fail(function (jqXHR, textStatus) {
+    	    hidePleaseWait();
+			showError(jqXHR.responseText);
+        });
+    });
+
+    resultado = function(jsondata) {
+    	$.ajax({
+      		type:'POST',
+      		async: true,
+      		data: JSON.stringify(jsondata),
+			contentType: "application/json",
+      		url:'/dashboard/ranking/result/',
+		}).done(function (data) {
+			$("#resultado").html(data)
+            hidePleaseWait();
+	    }).fail(function (jqXHR, textStatus) {
+			showError(jqXHR.responseText);
+        });
+    }
+
+
+
+</script>
+

@@ -1,0 +1,51 @@
+<div class="container rounded mt-5 bg-white p-md-5">
+    <div class="h2 font-weight-bold">Cumplimiento de planificacion</div>
+    <div class="row my-2 border-bottom">
+        <div class="col">
+    
+        </div>
+        <div class="col">
+            Ciclismo 
+        </div>
+        <div class="col">
+            Natacion
+        </div>
+        <div class="col">
+            Pedestrismo
+        </div>
+        <div class="col">
+            Total
+        </div>
+    </div>
+    {% for row in result %}
+    <div class="row my-2 border-bottom">
+        <div class="col">
+            {{ row.Usuario }}
+        </div>
+        <div class="col">
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar bg-info" role="progressbar" style="width: {{ row.CiclismoPorc }}%;" aria-valuenow="{{ row.CiclismoPorc }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            {{ row.CiclismoRealizado }} de {{ row.CiclismoPlan }}, Duracion {{ row.CiclismoDuracion }}
+        </div>
+        <div class="col">
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar bg-warning" role="progressbar" style="width: {{ row.NatacionPorc }}%;" aria-valuenow="{{ row.NatacionPorc }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            {{ row.NatacionRealizado }} de {{ row.NatacionPlan }}, Duracion {{ row.NatacionDuracion }}
+        </div>
+        <div class="col">
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ row.PedestrismoPorc }}%;" aria-valuenow="{{ row.PedestrismoPorc }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            {{ row.PedestrismoRealizado }} de {{ row.PedestrismoPlan }}, Duracion {{ row.PedestrismoDuracion }}
+        </div>
+        <div class="col">
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ row.TotalPorc }}%;" aria-valuenow="{{ row.TotalPorc }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            {{ row.TotalRealizado }} de {{ row.TotalPlan }}, Duracion {{ row.TotalDuracion }}
+        </div>
+    </div>
+    {% endfor %}
+</div>

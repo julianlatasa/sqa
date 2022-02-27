@@ -2,7 +2,7 @@ from django.shortcuts import render
 
 # Create your views here.
 
-from django.http import HttpResponse
+from django.http import HttpResponse,StreamingHttpResponse
 from django.template import loader
 import json
 
@@ -10,6 +10,27 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+
+from .models import (Profile, 
+                     GarminProfile,
+                     GarminSport,
+                     GarminActivities,
+                     )
+from django.core.exceptions import ObjectDoesNotExist
+
+import datetime
+import pytz
+from .GarminConnectSession import GarminSession
+import pandas as pd
+
+class mytimedelta(datetime.timedelta):
+   def __str__(self):
+      seconds = self.total_seconds()
+      hours = seconds // 3600
+      minutes = (seconds % 3600) // 60
+      seconds = seconds % 60
+      str = '{:02d}:{:02d}:{:02d}'.format(int(hours), int(minutes), int(seconds))
+      return (str)
 
 @ensure_csrf_cookie
 def index(request):
@@ -45,21 +66,6 @@ def weekplan(request):
                              ]}
     return HttpResponse(template.render(context, request))
 
-
-import datetime
-from django.http import StreamingHttpResponse
-from .GarminConnectSession import GarminSession
-import pandas as pd
-
-class mytimedelta(datetime.timedelta):
-   def __str__(self):
-      seconds = self.total_seconds()
-      hours = seconds // 3600
-      minutes = (seconds % 3600) // 60
-      seconds = seconds % 60
-      str = '{:02d}:{:02d}:{:02d}'.format(int(hours), int(minutes), int(seconds))
-      return (str)
-
 @csrf_exempt
 def rankingresult(request):
      data = json.loads( request.body.decode('utf8').replace("'", '"')  )
@@ -81,9 +87,6 @@ def rankingquery(request):
     http = StreamingHttpResponse( stream_response_generator(fecha, request.user.pk), content_type='text/plain' , headers = {'X-Accel-Buffering' : 'no'} )
 
     return http
-
-from .models import Profile, CacheData
-from django.core.exceptions import ObjectDoesNotExist
 
 @csrf_exempt
 def stream_response_generator(fecha, user_id):
@@ -108,7 +111,9 @@ def stream_response_generator(fecha, user_id):
     authuser = User.objects.get(pk=user_id)
 
     try:
-        user_profile = Profile.objects.get(user=authuser)
+        user_profile = GarminProfile.objects.get(user=authuser)
+        if (len(user_profile.garmincookies) > 0):
+            apicookies = json.loads(user_profile.garmincookies)
         if ((len(user_profile.garmin_user) > 0) and (len(user_profile.garmin_password) > 0)):
             usuario = user_profile.garmin_user
             password = user_profile.garmin_password
@@ -116,12 +121,6 @@ def stream_response_generator(fecha, user_id):
         yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"No existe usuraio y clave garmin registrado")
         return
 
-    try:
-        cache = CacheData.objects.get(user=authuser)
-        if (len(cache.garmincookies) > 0):
-            apicookies = json.loads(cache.garmincookies)
-    except ObjectDoesNotExist:
-        apicookies = None
         
     api = GarminSession() 
     
@@ -135,11 +134,11 @@ def stream_response_generator(fecha, user_id):
 
     if (api.saved_session is not None):
         try:
-            cache = CacheData.objects.get(user=authuser)
-            cache.garmincookies = json.dumps(api.saved_session)
+            user_profile = GarminProfile.objects.get(user=authuser)
+            user_profile.garmincookies = json.dumps(api.saved_session)
         except ObjectDoesNotExist:
-            cache = CacheData(user=authuser,garmincookies=json.dumps(api.saved_session))
-        cache.save()
+            user_profile = GarminProfile(user=authuser,garmincookies=json.dumps(api.saved_session))
+        user_profile.save()
 
     yield '{"estado": "%d", "mensaje": "%s"},\n' % (200,"Obteniendo contactos")
     try:
@@ -182,6 +181,24 @@ def stream_response_generator(fecha, user_id):
     
     dur = 0
     for activitie in activities:
+
+        try:
+            garmin_sport_obj = GarminSport.objects.get(name=activitie['activityType']['typeKey'])
+            try:        
+                garmin_activity = GarminActivities.objects.get(garmin_activity_id=activitie['activityId'])
+            except ObjectDoesNotExist:
+                localdatetime = datetime.datetime.strptime(activitie['startTimeLocal'], "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.timezone("America/Buenos_Aires"))
+                garmin_activity = GarminActivities(datetime=localdatetime,
+                                                   user=authuser,
+                                                   garmin_activity_id=activitie['activityId'],
+                                                   garmin_sport=garmin_sport_obj,
+                                                   duration=activitie['duration'],
+                                                   garmin_object=json.dumps(activitie))
+    #                                               garmin_file)
+            garmin_activity.save()
+        except ObjectDoesNotExist:
+            print(activitie['activityType']['typeKey'])
+        
         if (activitie['activityType']['typeKey'] in ('running','indoor_cycling','lap_swimming','cycling','open_water_swimming','mountain_biking','treadmill_running','road_biking')):
             datetime_object = datetime.datetime.strptime(activitie['startTimeLocal'], '%Y-%m-%d %H:%M:%S')
             if ((datetime_object.date() in dates) and not(activitie['activityType']['typeKey'] in dates[datetime_object.date()])):
@@ -228,6 +245,25 @@ def stream_response_generator(fecha, user_id):
 
         dur = 0
         for activitie in activities['activityList']:
+            try:
+                garmin_sport_obj = GarminSport.objects.get(name=activitie['activityType']['typeKey'])
+                garmin_user = GarminProfile.objects.get(garmin_id=user['displayName'])
+                try:        
+                    garmin_activity = GarminActivities.objects.get(garmin_activity_id=activitie['activityId'])
+                except ObjectDoesNotExist:
+                    localdatetime = datetime.datetime.strptime(activitie['startTimeLocal'], "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.timezone("America/Buenos_Aires"))
+                    garmin_activity = GarminActivities(datetime=localdatetime,
+                                                       user=garmin_user.user,
+                                                       garmin_activity_id=activitie['activityId'],
+                                                       garmin_sport=garmin_sport_obj,
+                                                       duration=activitie['duration'],
+                                                       garmin_object=json.dumps(activitie))
+        #                                               garmin_file)
+                garmin_activity.save()
+            except ObjectDoesNotExist:
+                print(activitie['activityType']['typeKey'])
+                print(user['displayName'])
+
             if (activitie['activityType']['typeKey'] in ('running','indoor_cycling','lap_swimming','cycling','open_water_swimming','mountain_biking','treadmill_running','road_biking')):
                 datetime_object = datetime.datetime.strptime(activitie['startTimeLocal'], '%Y-%m-%d %H:%M:%S')
                 if ((datetime_object.date() in dates) and not(activitie['activityType']['typeKey'] in dates[datetime_object.date()])):

@@ -1,7 +1,19 @@
 from django.contrib import admin
 
 # Register your models here.
-from dashboard.models import Sport, Team, Profile, GarminSport, UserType, PlanningType, Plan , AthleteCoach, CacheData
+from dashboard.models import (Sport, 
+                              UserType, 
+                              PlanningType, 
+                              Plan, 
+                              Activity,
+                              PlanActivities,
+                              AthleteCoach, 
+                              GarminSport, 
+                              GarminActivities, 
+                              Team, 
+                              Profile, 
+                              GarminProfile,
+                              )
 from django import forms
 
 from django.contrib.admin.widgets import FilteredSelectMultiple
@@ -35,6 +47,10 @@ class SportForm(forms.ModelForm):
         self.cleaned_data["sport"].update(sport=sport_instance )
         return sport_instance 
 
+@admin.register(Sport)
+class SportsAdmin(admin.ModelAdmin):
+    form = SportForm
+
 @admin.register(PlanningType)
 class PlanningTypesAdmin(admin.ModelAdmin):
     pass
@@ -43,12 +59,24 @@ class PlanningTypesAdmin(admin.ModelAdmin):
 class PlansAdmin(admin.ModelAdmin):
     pass
 
+@admin.register(Activity)
+class ActivityAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(PlanActivities)
+class PlanActivitiesAdmin(admin.ModelAdmin):
+    pass
+
 @admin.register(AthleteCoach)
 class AthleteCoachsAdmin(admin.ModelAdmin):
     pass
 
 @admin.register(GarminSport)
 class GarminSportsAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(GarminActivities)
+class GarminActivitiesAdmin(admin.ModelAdmin):
     pass
 
 @admin.register(UserType)
@@ -63,10 +91,6 @@ class TeamsAdmin(admin.ModelAdmin):
 class ProfileAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(Sport)
-class SportsAdmin(admin.ModelAdmin):
-    form = SportForm
-
-@admin.register(CacheData)
-class CacheDataAdmin(admin.ModelAdmin):
+@admin.register(GarminProfile)
+class GarminProfileAdmin(admin.ModelAdmin):
     pass

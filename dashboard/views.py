@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 
 # Create your views here.
 
@@ -7,21 +7,27 @@ from django.template import loader
 import json
 
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
-
-from django.contrib.auth import authenticate
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, logout
 from django.contrib.auth.models import User
 
-from .models import (Profile, 
+from .models import (#Profile, 
                      GarminProfile,
                      GarminSport,
                      GarminActivities,
+                     AthleteCoach, 
+                     PlanActivities
                      )
 from django.core.exceptions import ObjectDoesNotExist
 
+from .GarminConnectSession import GarminSession
 import datetime
 import pytz
-from .GarminConnectSession import GarminSession
 import pandas as pd
+import numpy as np
+
+#from django.db.models.functions import ExtractWeekDay
+from django.db.models import Count, Sum
 
 class mytimedelta(datetime.timedelta):
    def __str__(self):
@@ -33,11 +39,17 @@ class mytimedelta(datetime.timedelta):
       return (str)
 
 @ensure_csrf_cookie
+@login_required(login_url='../login/')
 def index(request):
     template = loader.get_template(r'dashboard/index.html')
     context = {'user_name' : request.user.first_name + ' ' + request.user.last_name} #'Julian Latasa'}
     #context = {'user_name' : 'Julian Latasa'}
     return HttpResponse(template.render(context, request))
+
+@ensure_csrf_cookie
+def logout_page(request):
+    logout(request)
+    return redirect('../../login/')
 
 @ensure_csrf_cookie
 def calendar(request):
@@ -50,13 +62,6 @@ def ranking(request):
     template = loader.get_template(r'dashboard/ranking.html')
     context = {}
     return HttpResponse(template.render(context, request))
-
-from .models import AthleteCoach, PlanActivities
-from pprint import pprint
-from django.db.models.functions import ExtractWeekDay
-from django.db.models import Count, Sum
-
-import numpy as np
 
 @ensure_csrf_cookie
 def plan(request):
@@ -134,6 +139,169 @@ def rankingresult(request):
 
      return HttpResponse(template.render(context, request))
 
+class ErrorLoginGarmin(Exception):
+    pass
+
+class GarminProfileDontExist(Exception):
+    pass
+
+
+class GarminData:
+    def __init__(self, request):
+        self.__user = User.objects.get(pk=request.user.pk)
+        self.__apicookies = None
+        self.__username = None
+        self.__password = None
+        self.__api = None
+        self.__logged_in = False
+        
+    def activities_of(self, start, end, user=None):
+        if (self.__logged_in == False):
+            if (self.__login() == False):
+                return None
+        api = self.__api
+        activities = None
+        try:
+            if (user is None):        
+                activities = api.get_activities(start,end)
+            else:
+                activities = api.get_connection_activities(user,start,end)
+        except:
+            return None
+
+        if ((activities) and (len(activities)>0)):
+            return activities
+
+    def connections(self):
+        connections = None
+        if (self.__logged_in == False):
+            if (self.__login() == False):
+                return None
+
+        api = self.__api
+        try:
+            connections = api.get_connections()
+        except:
+            return None
+        
+        if ( (connections) and (len(connections)>0) and ('userConnections' in connections) ):
+            return connections['userConnections']
+
+    def download_activity(self, activity_id):
+        if (self.__logged_in == False):
+            if (self.__login() == False):
+                return None
+        api = self.__api
+        return api.download_activity(activity_id, dl_fmt=api.ActivityDownloadFormat.ORIGINAL)
+    
+    def __login(self):
+        user = self.__user
+        if (self.__load_data_of(user) == False):
+            raise ErrorLoginGarmin()
+        
+        username = self.__username
+        password = self.__password
+        apicookies = self.__apicookies
+        
+        api = GarminSession(username,password, session_data=apicookies) 
+        
+        try:
+            if (api.login() == False):
+                return False
+        except Exception as e:
+            return False        
+
+        self.__api = api
+
+        if (api.session_data is not None):
+            self.__save_data_of(user)
+            
+        self.__logged_in = True
+        return True
+
+    def __load_data_of(self, user):
+        user_profile = None
+        try:
+            user_profile = GarminProfile.objects.get(user=user)
+            if (len(user_profile.garmincookies) > 0):
+                self.__apicookies = json.loads(user_profile.garmincookies)
+            if ((len(user_profile.garmin_user) > 0) and (len(user_profile.garmin_password) > 0)):
+                self.__username = user_profile.garmin_user
+                self.__password = user_profile.garmin_password
+        except ObjectDoesNotExist:
+            raise GarminProfileDontExist()
+        return True
+    
+    def __save_data_of(self, user):
+        api = self.__api
+        try:
+            user_profile = GarminProfile.objects.get(user=user)
+            user_profile.garmincookies = json.dumps(api.session_data)
+        except ObjectDoesNotExist:
+            user_profile = GarminProfile(user=user,garmincookies=json.dumps(api.session_data))
+        user_profile.save()
+        
+from zipfile import ZipFile
+import io
+import fitdecode
+
+class GarminActivity():
+    def __init__(self, activity_id, content):
+        self.activity_id = activity_id
+        self.content = content
+    
+    def __zip(self):
+        return_value = None
+        zip_file = ZipFile(io.BytesIO(self.content))
+        return_value = zip_file.read(self.activity_id + '_ACTIVITY.fit')
+        zip_file.close()
+        return return_value
+        
+    def sport(self):
+        activity_data = self.__zip()
+        sport = self.get_dataframes(activity_data)
+        return sport
+    
+    def get_dataframes(self, data):
+        sport = None
+        with fitdecode.FitReader(data) as fit_file:
+            for frame in fit_file:
+                if isinstance(frame, fitdecode.records.FitDataMessage):
+                    if frame.name == 'sport':
+                        sport = frame.get_value('sport')
+        
+        return sport
+
+
+
+@csrf_exempt
+def activities(request):
+    garmin_data = GarminData(request)
+    user = request.user
+    http = StreamingHttpResponse( stream_activities(garmin_data, user), content_type='text/plain' , headers = {'X-Accel-Buffering' : 'no'} )
+
+    return http
+
+@csrf_exempt
+def stream_activities(garmin_data, user):
+    conns = garmin_data.connections()
+    for c in conns:
+        yield c        
+    for activity in GarminActivities.objects.filter(user=user):
+        if (activity.garmin_file):
+            ga = GarminActivity(activity.garmin_activity_id,activity.garmin_file)
+            yield  ga.sport() + ' - ' + activity.garmin_sport.name
+    return
+    #for activity in GarminActivities.objects.filter(user=user):
+    #    yield 'actividad pedida: ' + activity.garmin_activity_id + '\n'
+    #    garmin_file = garmin_data.download_activity(activity.garmin_activity_id)
+    #    yield 'actividad guardada: ' + activity.garmin_activity_id + '\n'
+    #    if not(garmin_file == None):
+    #        activity.garmin_file = garmin_file
+    #        activity.save()
+            
+
+
 @csrf_exempt
 def rankingquery(request):
     if (request.method == 'POST'):
@@ -181,22 +349,22 @@ def stream_response_generator(fecha, user_id):
         return
 
         
-    api = GarminSession() 
+    api = GarminSession(usuario,password, session_data=apicookies) 
     
     try:
-        if (api.login(usuario,password, apicookies) == False):
+        if (api.login() == False):
             yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error al loguearse a Garmin")
             return
     except Exception as e:
         yield '{"estado": "%d", "mensaje": "%s"},\n' % (400,"Error inesperado al loguearse a Garmin:\\n" + str(e))
         return   
 
-    if (api.saved_session is not None):
+    if (api.session_data is not None):
         try:
             user_profile = GarminProfile.objects.get(user=authuser)
-            user_profile.garmincookies = json.dumps(api.saved_session)
+            user_profile.garmincookies = json.dumps(api.session_data)
         except ObjectDoesNotExist:
-            user_profile = GarminProfile(user=authuser,garmincookies=json.dumps(api.saved_session))
+            user_profile = GarminProfile(user=authuser,garmincookies=json.dumps(api.session_data))
         user_profile.save()
 
     yield '{"estado": "%d", "mensaje": "%s"},\n' % (200,"Obteniendo contactos")
@@ -291,6 +459,8 @@ def stream_response_generator(fecha, user_id):
             return
 
         yield '{"estado": "%d", "mensaje": "%s"},\n' % (200,"Obteniendo actividades de " + user['fullName'])
+
+        profile_id = user['userId']
 
         try:
             activities = api.get_connection_activities(user['displayName'],0,25)

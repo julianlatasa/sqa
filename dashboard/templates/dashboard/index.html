@@ -7,6 +7,9 @@
    	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
 </head>
 
+<style type="text/css">
+.hide-me[aria-expanded="false"] {display: none;}
+</style>
 
 <body>
 
@@ -18,35 +21,40 @@
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
 
   
-<nav class="navbar navbar-light bg-light navbar-expand-lg ">
-      <a class="navbar-brand d-flex col-12 col-md-3 col-lg-2 border-end" href="#">
-          Squadra Dashboard
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-      </button>
-    <div class="collapse navbar-collapse col-12 col-md-4 col-lg-2" id="navbarNav">
-      <ul class="nav nav-pills nav-fill">
-        <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="#">Inicio</a>
-        </li>
-        <li class="my-40 mx-3 border-end"></li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">Mi Perfil</a>
-        </li>
-        <li class="my-40 mx-3 border-end"></li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">Mis Entrenos</a>
-        </li>
-        <li class="my-40 mx-3 border-end"></li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">Mi Equipo</a>
-        </li>
-        <li class="my-40 mx-3 border-end"></li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">Salir</a>
-        </li>
-      </ul>
+<nav class="navbar navbar-light bg-light navbar-expand-lg" role="navigation">
+  <div class="container-fluid">
+        <a class="col-md-3 col-lg-2 navbar-brand" href="#">
+            Squadra Dashboard
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="col-md-9 col-lg-9 collapse navbar-collapse" id="navbarNav">
+          <ul class="nav navbar-nav nav-pills me-auto">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="#">Inicio</a>
+            </li>
+            <li class="my-40 mx-3 border-end"></li>
+            <li class="nav-item">
+              <a class="nav-link" href="#">Mi Perfil</a>
+            </li>
+            <li class="my-40 mx-3 border-end"></li>
+            <li class="nav-item">
+              <a class="nav-link" href="#">Mis Entrenos</a>
+            </li>
+            <li class="my-40 mx-3 border-end"></li>
+            <li class="nav-item">
+              <a class="nav-link" href="#">Mi Equipo</a>
+            </li>
+            <li class="my-40 mx-3 border-end"></li>
+            <li class="nav-item">
+              <a class="nav-link" href="logout/">Salir</a>
+            </li>
+          </ul>
+          <span class="navbar-text hide-me">
+            {{user_name}}
+          </span>
+        </div>
     </div>
 </nav>
 

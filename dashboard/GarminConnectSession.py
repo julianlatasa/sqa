@@ -94,9 +94,11 @@ class ApiClientSession(garminconnect.ApiClient):
 
 class GarminSession(garminconnect.Garmin):
     
-    def __init__(self, is_cn=False):
+    def __init__(self, email, password, is_cn=False, session_data=None):
         """Create a new class instance."""
-        self.saved_session = None
+        self.session_data = session_data
+        self.username = email
+        self.password = password
         self.is_cn = is_cn
 
         self.garmin_connect_base_url = "https://connect.garmin.com"
@@ -207,17 +209,11 @@ class GarminSession(garminconnect.Garmin):
 
         return None
 
-    def login(self, email=None, password=None, session=None):
-        self.username = email
-        self.password = password
-        self.session_data = session
-        if ((email is not None) and (password is not None) and (session is None)):
+    def login(self):
+        if (self.session_data is None):
             return self.authenticate()
-        elif (session is not None):
-            return self.login_session()
         else:
-            return False
-
+            return self.login_session()
 
     def authenticate(self):
         """Login to Garmin Connect."""
@@ -307,9 +303,10 @@ class GarminSession(garminconnect.Garmin):
 
         social_profile = self.__get_json(response.text, "VIEWER_SOCIAL_PROFILE")
         self.full_name = social_profile["fullName"]
+        self.profile_id = social_profile["profileId"]
         logger.debug("Fullname is %s", self.full_name)
 
-        self.saved_session = {'params' : params,
+        self.session_data = {'params' : params,
                               'display_name': self.display_name,
                               'session_cookies' : requests.utils.dict_from_cookiejar(self.session.cookies)}
         logger.debug("Cookies saved")
@@ -344,6 +341,7 @@ class GarminSession(garminconnect.Garmin):
 
         social_profile = self.__get_json(response.text, "VIEWER_SOCIAL_PROFILE")
         self.full_name = social_profile["fullName"]
+        self.profile_id = social_profile["profileId"]
         logger.debug("Fullname is %s", self.full_name)
         
         if (self.display_name == session_display_name):

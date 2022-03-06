@@ -75,6 +75,36 @@ class AthleteCoachForm(forms.ModelForm):
         return athlete_instance 
 
 
+class WorkoutPlanForm(forms.ModelForm):
+    name = forms.CharField(max_length=100)
+    planning_type = forms.Select()
+    actividades_plan = forms.ModelMultipleChoiceField(queryset=Activity.objects.all(), 
+                                                  widget=FilteredSelectMultiple("actividades_plan", is_stacked=False), required=False)
+
+    class Meta:
+        model = Plan
+        fields = ["name","planning_type"]
+
+    def __init__(self, *args, **kwargs):
+        super(WorkoutPlanForm, self).__init__(*args, **kwargs)
+        if self.instance:
+            self.fields["actividades_plan"].initial = Activity.objects.filter(pk__in=[ob.activity.pk for ob in self.instance.actividades.all()])
+
+    def save_m2m(self):
+        pass
+
+    def save(self, *args, **kwargs):
+        self.fields["actividades_plan"].initial.update(planificado=None)
+        plan_instance = Plan()
+        #plan_instance.pk = self.instance.pk
+        #plan_instance.name = self.instance.name
+        #plan_instance.planning_type = self.instance.planning_type
+        #plan_instance.save()
+        self.cleaned_data["actividades_plan"].update(plan=plan_instance)
+        print(self.cleaned_data)
+        return plan_instance 
+
+
 @admin.register(Sport)
 class SportsAdmin(admin.ModelAdmin):
     form = SportForm
@@ -85,7 +115,8 @@ class PlanningTypesAdmin(admin.ModelAdmin):
 
 @admin.register(Plan)
 class PlansAdmin(admin.ModelAdmin):
-    pass
+    form = WorkoutPlanForm
+    #pass
 
 @admin.register(Activity)
 class ActivityAdmin(admin.ModelAdmin):

@@ -8,7 +8,7 @@ import json
 
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 
 @ensure_csrf_cookie
@@ -18,7 +18,7 @@ def index(request):
     return HttpResponse(template.render(context, request))
 
 @ensure_csrf_cookie
-def login(request):
+def login_page(request):
     data = json.loads(request.body.decode('utf-8') )
     user_email = data['usuario']
     password = data['password']
@@ -30,6 +30,7 @@ def login(request):
         if (user_name is not None):
             user = authenticate(username=user_name, password=password)
             if user is not None: # and user.is_active:
+                login(request,user)
                 res['result'] = 200
                 res['response'] = '/dashboard/'
                 #res['response'] = 'Usuario valido'

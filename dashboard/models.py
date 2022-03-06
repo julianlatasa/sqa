@@ -43,11 +43,11 @@ class Activity(models.Model):
 class PlanActivities(models.Model):
     order = models.IntegerField(blank=True,null=True)
     date = models.DateField(null=True, blank=True)
-    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, blank=True)
-    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, blank=True)
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, blank=True, related_name='actividades')
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, blank=True, related_name='planificado')
 
     def __str__(self):
-        return f"{self.plan.name, self.activity.name}"
+        return f"{self.activity.name}"
 
 class AthleteCoach(models.Model):
     athlete = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name='athlete')
@@ -56,7 +56,7 @@ class AthleteCoach(models.Model):
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.coach}"
+        return f"{self.coach}, {self.athlete}"
 
 class GarminSport(models.Model):
     name = models.CharField(max_length=100)
@@ -74,7 +74,7 @@ class GarminActivities(models.Model):
     datetime = models.DateTimeField(null=True, blank=True)
     duration = models.BigIntegerField(null=True, blank=True)
     garmin_object = models.TextField(blank=True)
-    garmin_file = models.BinaryField(blank=True,editable=False)
+    garmin_file = models.BinaryField(blank=True, editable=False, null=True)
 
 
     @admin.display(description='Fecha')
